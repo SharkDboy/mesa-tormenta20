@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FichaT20, TipoFicha } from "@/types/t20";
@@ -39,7 +39,7 @@ export function FichaEditor({
   historicoInicial,
 }: FichaEditorProps) {
   const router = useRouter();
-  const { rolar, carregando: rolagemCarregando } = useRolagem(campanhaId);
+  const rolagem = useRolagem(campanhaId);
   const [abaAtiva, setAbaAtiva] = useState<AbaFicha>("atributos");
   const [dados, setDados] = useState<FichaFormData>(() =>
     fichaInicial
@@ -50,7 +50,25 @@ export function FichaEditor({
   const [erro, setErro] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState<string | null>(null);
 
+  const chaveFicha = fichaInicial
+    ? `${fichaInicial.id}:${fichaInicial.atualizado_em ?? ""}`
+    : `novo:${tipoInicial}`;
+
+  useEffect(() => {
+    setDados(
+      fichaInicial
+        ? fichaParaFormulario(fichaInicial)
+        : formularioPadrao(tipoInicial),
+    );
+    setAbaAtiva("atributos");
+    setErro(null);
+    setMensagem(null);
+  }, [chaveFicha, fichaInicial, tipoInicial]);
+
   const modoEdicao = Boolean(fichaId || fichaInicial);
+  const visualizandoMinhaPc =
+    Boolean(fichaInicial?.tipo === "pc") &&
+    !npcsMonstros.some((f) => f.id === fichaId);
   const podeAlterarTipo = ehMestre && !fichaInicial?.dono_id;
   const idFichaAtual = fichaId ?? fichaInicial?.id;
   const podeRolar = Boolean(idFichaAtual && dados.nome.trim());
@@ -92,12 +110,20 @@ export function FichaEditor({
   }
 
   async function handleRolar(teste: string, expressao: string) {
-    await rolar({
+    await rolagem.rolar({
       fichaId: idFichaAtual,
       nomePersonagem: dados.nome.trim() || "Sem nome",
       teste,
       expressao,
     });
+  }
+
+  function classeLinkGm(ativo: boolean) {
+    return `text-[7px] px-3 py-2 border-2 ${
+      ativo
+        ? "border-accent text-accent bg-surface"
+        : "border-border hover:border-accent"
+    }`;
   }
 
   return (
@@ -130,19 +156,19 @@ export function FichaEditor({
           <div className="flex flex-wrap gap-2">
             <Link
               href={`/campanha/${campanhaId}/ficha`}
-              className="text-[7px] px-3 py-2 border-2 border-border hover:border-accent"
+              className={classeLinkGm(visualizandoMinhaPc)}
             >
               Minha ficha PC
             </Link>
             <Link
               href={`/campanha/${campanhaId}/ficha?novo=npc`}
-              className="text-[7px] px-3 py-2 border-2 border-border hover:border-accent"
+              className={classeLinkGm(false)}
             >
               + Novo NPC
             </Link>
             <Link
               href={`/campanha/${campanhaId}/ficha?novo=monstro`}
-              className="text-[7px] px-3 py-2 border-2 border-border hover:border-accent"
+              className={classeLinkGm(false)}
             >
               + Novo Monstro
             </Link>
@@ -150,7 +176,7 @@ export function FichaEditor({
               <Link
                 key={f.id}
                 href={`/campanha/${campanhaId}/ficha?fichaId=${f.id}`}
-                className="text-[7px] px-3 py-2 border-2 border-border hover:border-accent"
+                className={classeLinkGm(fichaId === f.id)}
               >
                 {f.nome} ({f.tipo})
               </Link>
@@ -168,7 +194,7 @@ export function FichaEditor({
               dados={dados}
               onChange={atualizarDados}
               podeRolar={podeRolar}
-              rolagemCarregando={rolagemCarregando}
+              rolagemCarregando={rolagem.carregando}
               onRolar={handleRolar}
             />
           )}
@@ -203,12 +229,14 @@ export function FichaEditor({
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
           <SpriteCustomizer
+            key={chaveFicha}
             config={dados.sprite_config}
             onChange={(sprite_config) => atualizarDados({ sprite_config })}
           />
           <DicePanel
             campanhaId={campanhaId}
             historicoInicial={historicoInicial}
+            rolagem={rolagem}
             titulo="ROLADOR"
             contextoFicha={
               podeRolar

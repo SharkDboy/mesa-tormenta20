@@ -38,9 +38,7 @@ export async function salvarFicha(
     return { ok: false, error: "Campanha não encontrada ou sem permissão." };
   }
 
-  const payload: Database["public"]["Tables"]["fichas_t20"]["Insert"] = {
-    campanha_id: campanhaId,
-    tipo: dados.tipo,
+  const camposFicha = {
     nome: dados.nome.trim(),
     raca: dados.raca.trim() || null,
     classe: dados.classe.trim() || null,
@@ -82,13 +80,29 @@ export async function salvarFicha(
       return { ok: false, error: "Você não tem permissão para editar esta ficha." };
     }
 
-    const { error } = await supabase
+    const updatePayload: Database["public"]["Tables"]["fichas_t20"]["Update"] = {
+      ...camposFicha,
+      tipo: detalhe.ehMestre ? dados.tipo : fichaExistente.tipo,
+    };
+
+    const { data: fichaAtualizada, error } = await supabase
       .from("fichas_t20")
-      .update(payload)
-      .eq("id", fichaId);
+      .update(updatePayload)
+      .eq("id", fichaId)
+      .eq("campanha_id", campanhaId)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       return { ok: false, error: error.message };
+    }
+
+    if (!fichaAtualizada) {
+      return {
+        ok: false,
+        error:
+          "Não foi possível salvar a ficha. Verifique se você tem permissão ou rode o script de políticas RLS no Supabase.",
+      };
     }
   } else {
     if (dados.tipo === "pc") {
@@ -106,8 +120,10 @@ export async function salvarFicha(
       };
     }
 
-    const insertData = {
-      ...payload,
+    const insertData: Database["public"]["Tables"]["fichas_t20"]["Insert"] = {
+      campanha_id: campanhaId,
+      tipo: dados.tipo,
+      ...camposFicha,
       dono_id: dados.tipo === "pc" ? user.id : null,
     };
 

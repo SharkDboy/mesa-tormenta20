@@ -84,7 +84,7 @@ export function MesaJogoClient({
       </div>
 
       <p className="text-[6px] text-foreground/30 text-center">
-        Arraste tokens · Jogadores movem o próprio · Mestre move todos · PV visível
+        Arraste o mapa (clique vazio ou botão do meio) · Tokens com clique esquerdo · PV visível
         {ehMestre ? " · PM visível (GM)" : ""}
       </p>
     </div>

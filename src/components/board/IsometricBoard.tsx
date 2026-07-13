@@ -26,6 +26,14 @@ interface ArrasteState {
   previewGridY: number;
 }
 
+interface PanState {
+  pointerId: number;
+  startMouseX: number;
+  startMouseY: number;
+  startPanX: number;
+  startPanY: number;
+}
+
 interface IsometricBoardProps {
   campanhaId: string;
   config: ConfigTabuleiro;
@@ -47,6 +55,8 @@ export function IsometricBoard({
   const containerRef = useRef<HTMLDivElement>(null);
   const [tokens, setTokens] = useState(tokensInicial);
   const [tamanho, setTamanho] = useState({ w: 800, h: 520 });
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [panning, setPanning] = useState<PanState | null>(null);
   const [arraste, setArraste] = useState<ArrasteState | null>(null);
   const [hoverCelula, setHoverCelula] = useState<{
     gridX: number;
@@ -82,6 +92,8 @@ export function IsometricBoard({
   }, []);
 
   const offset = calcularOffsetTabuleiro(config, tamanho.w, tamanho.h);
+  const cameraOffsetX = offset.offsetX + pan.x;
+  const cameraOffsetY = offset.offsetY + pan.y;
 
   const podeArrastar = useCallback(
     (token: TokenNoTabuleiro) => {
@@ -115,7 +127,7 @@ export function IsometricBoard({
     ctx.fillStyle = "#16213e";
     ctx.fillRect(0, 0, tamanho.w, tamanho.h);
 
-    desenharGrid(ctx, config, offset.offsetX, offset.offsetY, hoverCelula);
+    desenharGrid(ctx, config, cameraOffsetX, cameraOffsetY, hoverCelula);
 
     const ordenados = ordenarTokensPorProfundidade(tokensParaDesenho);
     for (const token of ordenados) {
@@ -123,8 +135,8 @@ export function IsometricBoard({
         ctx,
         token,
         config,
-        offset.offsetX,
-        offset.offsetY,
+        cameraOffsetX,
+        cameraOffsetY,
         ehMestre,
         arraste?.posicaoId === token.posicaoId,
       );
@@ -132,8 +144,8 @@ export function IsometricBoard({
   }, [
     tamanho,
     config,
-    offset.offsetX,
-    offset.offsetY,
+    cameraOffsetX,
+    cameraOffsetY,
     hoverCelula,
     tokensParaDesenho,
     ehMestre,
@@ -342,6 +354,30 @@ export function IsometricBoard({
     }, DEBOUNCE_MS);
   }
 
+  function iniciarPan(
+    e: React.PointerEvent<HTMLCanvasElement>,
+    x: number,
+    y: number,
+  ) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setPanning({
+      pointerId: e.pointerId,
+      startMouseX: x,
+      startMouseY: y,
+      startPanX: pan.x,
+      startPanY: pan.y,
+    });
+    setArraste(null);
+  }
+
+  function finalizarPan(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!panning) return;
+    setPanning(null);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }
+
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const { x, y } = coordenadasCanvas(e.clientX, e.clientY);
     const token = encontrarTokenNoPonto(
@@ -349,42 +385,63 @@ export function IsometricBoard({
       x,
       y,
       config,
-      offset.offsetX,
-      offset.offsetY,
+      cameraOffsetX,
+      cameraOffsetY,
     );
 
-    if (!token || !podeArrastar(token)) return;
+    const botaoEsquerdo = e.button === 0;
+    const botaoMeio = e.button === 1;
+    const podeArrastarToken = Boolean(token && podeArrastar(token));
 
-    e.currentTarget.setPointerCapture(e.pointerId);
+    if (botaoEsquerdo && podeArrastarToken && token) {
+      e.currentTarget.setPointerCapture(e.pointerId);
 
-    const centro = gridParaTela(
-      token.gridX,
-      token.gridY,
-      config.tileLargura,
-      config.tileAltura,
-      offset.offsetX,
-      offset.offsetY,
-    );
+      const centro = gridParaTela(
+        token.gridX,
+        token.gridY,
+        config.tileLargura,
+        config.tileAltura,
+        cameraOffsetX,
+        cameraOffsetY,
+      );
 
-    setArraste({
-      posicaoId: token.posicaoId,
-      offsetMouseX: x - centro.x,
-      offsetMouseY: y - centro.y,
-      previewGridX: token.gridX,
-      previewGridY: token.gridY,
-    });
+      setPanning(null);
+      setArraste({
+        posicaoId: token.posicaoId,
+        offsetMouseX: x - centro.x,
+        offsetMouseY: y - centro.y,
+        previewGridX: token.gridX,
+        previewGridY: token.gridY,
+      });
+      return;
+    }
+
+    if (botaoEsquerdo || botaoMeio) {
+      e.preventDefault();
+      iniciarPan(e, x, y);
+    }
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     const { x, y } = coordenadasCanvas(e.clientX, e.clientY);
+
+    if (panning) {
+      const deltaX = x - panning.startMouseX;
+      const deltaY = y - panning.startMouseY;
+      setPan({
+        x: panning.startPanX + deltaX,
+        y: panning.startPanY + deltaY,
+      });
+      return;
+    }
 
     const grid = telaParaGrid(
       x,
       y,
       config.tileLargura,
       config.tileAltura,
-      offset.offsetX,
-      offset.offsetY,
+      cameraOffsetX,
+      cameraOffsetY,
     );
     const clamped = clampGrid(grid.gridX, grid.gridY, config);
     setHoverCelula(clamped);
@@ -396,8 +453,8 @@ export function IsometricBoard({
       y - arraste.offsetMouseY,
       config.tileLargura,
       config.tileAltura,
-      offset.offsetX,
-      offset.offsetY,
+      cameraOffsetX,
+      cameraOffsetY,
     );
     const destino = clampGrid(alvo.gridX, alvo.gridY, config);
 
@@ -413,6 +470,11 @@ export function IsometricBoard({
   }
 
   function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (panning) {
+      finalizarPan(e);
+      return;
+    }
+
     if (!arraste) return;
 
     const tokenOriginal = tokens.find((t) => t.posicaoId === arraste.posicaoId);
@@ -429,18 +491,32 @@ export function IsometricBoard({
     }
 
     setArraste(null);
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
   }
+
+  function handlePointerLeave(e: React.PointerEvent<HTMLCanvasElement>) {
+    setHoverCelula(null);
+    if (panning) finalizarPan(e);
+  }
+
+  const cursorCanvas = panning
+    ? "cursor-grabbing"
+    : arraste
+      ? "cursor-grabbing"
+      : "cursor-grab";
 
   return (
     <div ref={containerRef} className="relative w-full h-full min-h-[400px]">
       <canvas
         ref={canvasRef}
-        className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
+        className={`w-full h-full touch-none ${cursorCanvas}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerLeave={() => setHoverCelula(null)}
+        onPointerLeave={handlePointerLeave}
+        onContextMenu={(e) => e.preventDefault()}
         aria-label="Tabuleiro isométrico"
       />
       {erro && (
@@ -451,6 +527,11 @@ export function IsometricBoard({
       {arraste && (
         <p className="absolute top-2 left-2 text-[6px] text-accent bg-surface/80 px-2 py-1">
           {arraste.previewGridX}, {arraste.previewGridY}
+        </p>
+      )}
+      {!arraste && !panning && (
+        <p className="absolute bottom-2 right-2 text-[5px] text-foreground/30 bg-surface/60 px-2 py-1 pointer-events-none">
+          Arraste o mapa (clique vazio) · Botão do meio · Tokens com clique esquerdo
         </p>
       )}
     </div>

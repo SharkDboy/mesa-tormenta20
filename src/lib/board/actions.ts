@@ -105,14 +105,18 @@ export async function adicionarMonstroNoMapa(
     .from("fichas_t20")
     .insert({
       campanha_id: campanhaId,
+      dono_id: null,
       tipo: "monstro",
       nome: `Monstro ${numero}`,
       nivel: 1,
+      biografia: "",
+      inventario: "",
       pv_max: 20,
       pv_atual: 20,
       pm_max: 0,
       pm_atual: 0,
       defesa: 12,
+      pericias: {} as unknown as Json,
       sprite_config: {
         ...SPRITE_CONFIG_PADRAO,
         roupa: "#8b0000",

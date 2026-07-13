@@ -36,3 +36,5 @@ export function useRolagem(campanhaId: string) {
 
   return { rolar, carregando, erro, ultima, setErro };
 }
+
+export type RolagemController = ReturnType<typeof useRolagem>;

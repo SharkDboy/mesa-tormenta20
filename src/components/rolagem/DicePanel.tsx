@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RolagemRegistro } from "@/lib/rolagens/types";
-import { useRolagem } from "@/hooks/useRolagem";
+import { useRolagem, type RolagemController } from "@/hooks/useRolagem";
 import { montarExpressaoLivre } from "@/lib/t20/dados";
 import { RolagemHistorico } from "./RolagemHistorico";
 
@@ -17,6 +17,8 @@ interface DicePanelProps {
   historicoInicial: RolagemRegistro[];
   contextoFicha?: ContextoFicha;
   titulo?: string;
+  /** Quando fornecido, compartilha o mesmo estado de rolagem do editor (evita histórico duplicado). */
+  rolagem?: RolagemController;
 }
 
 export function DicePanel({
@@ -24,8 +26,10 @@ export function DicePanel({
   historicoInicial,
   contextoFicha,
   titulo = "ROLADOR T20",
+  rolagem: rolagemExterna,
 }: DicePanelProps) {
-  const { rolar, carregando, erro, ultima } = useRolagem(campanhaId);
+  const rolagemInterna = useRolagem(campanhaId);
+  const { rolar, carregando, erro, ultima } = rolagemExterna ?? rolagemInterna;
   const [historico, setHistorico] = useState(historicoInicial);
   const [quantidade, setQuantidade] = useState(1);
   const [lados, setLados] = useState(20);

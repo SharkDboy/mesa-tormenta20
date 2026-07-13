@@ -49,6 +49,7 @@ export default async function FichaPage({
 
     return (
       <FichaEditor
+        key={ficha.id}
         campanhaId={campanhaId}
         campanhaNome={detalhe.campanha.nome}
         fichaId={ficha.id}
@@ -67,6 +68,7 @@ export default async function FichaPage({
 
     return (
       <FichaEditor
+        key={`novo-${tipoNovo}`}
         campanhaId={campanhaId}
         campanhaNome={detalhe.campanha.nome}
         tipoInicial={tipoNovo}
@@ -81,6 +83,7 @@ export default async function FichaPage({
 
   return (
     <FichaEditor
+      key={fichaJogador?.id ?? "nova-pc"}
       campanhaId={campanhaId}
       campanhaNome={detalhe.campanha.nome}
       fichaId={fichaJogador?.id}

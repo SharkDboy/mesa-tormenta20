@@ -16,8 +16,11 @@ export function SpritePreview({
   const colunas = mapa[0]?.length ?? 0;
   const linhas = mapa.length;
 
+  const chaveSprite = `${config.estiloCabelo}-${config.pele}-${config.cabelo}-${config.roupa}`;
+
   return (
     <div
+      key={chaveSprite}
       className={`inline-grid bg-background/50 p-2 pixel-border ${className}`}
       style={{
         gridTemplateColumns: `repeat(${colunas}, ${escala}px)`,
