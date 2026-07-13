@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-const ROTAS_PUBLICAS = ["/", "/login"];
 const PREFIXOS_PROTEGIDOS = ["/dashboard", "/campanha"];
 
 function ehRotaProtegida(pathname: string): boolean {
