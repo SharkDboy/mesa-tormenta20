@@ -13,8 +13,11 @@ export async function middleware(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  // Callback de auth precisa processar o ?code= sem redirecionar antes
-  if (pathname.startsWith("/auth/callback")) {
+  // Rotas de auth com code/token não devem ser redirecionadas antes
+  if (
+    pathname.startsWith("/auth/callback") ||
+    pathname.startsWith("/auth/update-password")
+  ) {
     return supabaseResponse;
   }
 

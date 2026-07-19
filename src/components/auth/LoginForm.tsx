@@ -27,6 +27,13 @@ export function LoginForm() {
   const [erro, setErro] = useState<string | null>(erroCallback);
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
+  const [mostrarRecuperacao, setMostrarRecuperacao] = useState(false);
+  const [emailRecuperacao, setEmailRecuperacao] = useState("");
+  const [enviandoRecuperacao, setEnviandoRecuperacao] = useState(false);
+  const [erroRecuperacao, setErroRecuperacao] = useState<string | null>(null);
+  const [sucessoRecuperacao, setSucessoRecuperacao] = useState<string | null>(
+    null,
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,8 +102,45 @@ export function LoginForm() {
     }
   }
 
+  async function handleRecuperacao(e: React.FormEvent) {
+    e.preventDefault();
+    setErroRecuperacao(null);
+    setSucessoRecuperacao(null);
+
+    const emailAlvo = emailRecuperacao.trim();
+    if (!emailAlvo) {
+      setErroRecuperacao("Informe o e-mail da sua conta.");
+      return;
+    }
+
+    setEnviandoRecuperacao(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(emailAlvo, {
+        redirectTo: `${window.location.origin}/auth/update-password`,
+      });
+
+      if (error) {
+        setErroRecuperacao(error.message);
+        return;
+      }
+
+      setSucessoRecuperacao(
+        "Link enviado! Confira sua caixa de entrada (e o spam) para redefinir a senha.",
+      );
+    } finally {
+      setEnviandoRecuperacao(false);
+    }
+  }
+
+  function fecharRecuperacao() {
+    setMostrarRecuperacao(false);
+    setErroRecuperacao(null);
+    setSucessoRecuperacao(null);
+  }
+
   return (
-    <div className="pixel-border bg-surface p-8 max-w-sm w-full">
+    <div className="relative pixel-border bg-surface p-8 max-w-sm w-full">
       <p className="text-[8px] text-accent text-center mb-2">TORMENTA20</p>
       <h1 className="text-xs mb-6 text-center">
         {modo === "login" ? "ENTRAR" : "CRIAR CONTA"}
@@ -173,6 +217,21 @@ export function LoginForm() {
           />
         </label>
 
+        {modo === "login" && (
+          <button
+            type="button"
+            onClick={() => {
+              setMostrarRecuperacao(true);
+              setEmailRecuperacao(email);
+              setErroRecuperacao(null);
+              setSucessoRecuperacao(null);
+            }}
+            className="text-[6px] text-left text-accent/80 hover:text-accent -mt-1"
+          >
+            Esqueci minha senha
+          </button>
+        )}
+
         {erro && (
           <p className="text-[7px] text-hp leading-4" role="alert">
             {erro}
@@ -202,6 +261,67 @@ export function LoginForm() {
       >
         ← Voltar ao início
       </Link>
+
+      {mostrarRecuperacao && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-background/85 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titulo-recuperacao"
+        >
+          <div className="pixel-border bg-surface p-5 w-full max-w-[280px]">
+            <h2 id="titulo-recuperacao" className="text-[8px] text-accent mb-2">
+              RECUPERAR SENHA
+            </h2>
+            <p className="text-[6px] text-foreground/40 leading-4 mb-4">
+              Digite o e-mail da conta. Enviaremos um link mágico para criar uma
+              nova senha.
+            </p>
+
+            <form onSubmit={handleRecuperacao} className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[7px] text-foreground/60">E-mail</span>
+                <input
+                  type="email"
+                  value={emailRecuperacao}
+                  onChange={(e) => setEmailRecuperacao(e.target.value)}
+                  className="pixel-input"
+                  placeholder="heroi@email.com"
+                  required
+                  autoComplete="email"
+                  autoFocus
+                />
+              </label>
+
+              {erroRecuperacao && (
+                <p className="text-[6px] text-hp leading-4" role="alert">
+                  {erroRecuperacao}
+                </p>
+              )}
+              {sucessoRecuperacao && (
+                <p className="text-[6px] text-accent leading-4">
+                  {sucessoRecuperacao}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={enviandoRecuperacao || Boolean(sucessoRecuperacao)}
+                className="pixel-btn text-[7px] w-full disabled:opacity-50"
+              >
+                {enviandoRecuperacao ? "Enviando..." : "Enviar link"}
+              </button>
+              <button
+                type="button"
+                onClick={fecharRecuperacao}
+                className="text-[6px] text-foreground/50 hover:text-accent"
+              >
+                Cancelar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
