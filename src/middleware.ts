@@ -13,6 +13,11 @@ export async function middleware(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
+  // Callback de auth precisa processar o ?code= sem redirecionar antes
+  if (pathname.startsWith("/auth/callback")) {
+    return supabaseResponse;
+  }
+
   if (ehRotaProtegida(pathname) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

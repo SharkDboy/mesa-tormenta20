@@ -13,12 +13,18 @@ export function LoginForm() {
   const redirect = searchParams.get("redirect") ?? "/dashboard";
   const modoInicial =
     searchParams.get("mode") === "cadastro" ? "cadastro" : "login";
+  const erroCallback =
+    searchParams.get("error") === "auth_callback"
+      ? decodeURIComponent(
+          searchParams.get("message") ?? "Falha na confirmação do e-mail.",
+        )
+      : null;
 
   const [modo, setModo] = useState<ModoAuth>(modoInicial);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [nomeExibicao, setNomeExibicao] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(erroCallback);
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
 
@@ -38,11 +44,15 @@ export function LoginForm() {
           return;
         }
 
+        const origem = window.location.origin;
+        const redirectAposConfirmacao = `${origem}/auth/callback?next=${encodeURIComponent(redirect)}`;
+
         const { error } = await supabase.auth.signUp({
           email: email.trim(),
           password: senha,
           options: {
             data: { nome_exibicao: nome },
+            emailRedirectTo: redirectAposConfirmacao,
           },
         });
 
